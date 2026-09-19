@@ -1,0 +1,29 @@
+[
+    {
+        "id": 1,
+        "name": "Consulta medica general",
+        "description": "Consulta con medico general para evaluacion y seguimiento de salud",
+        "duration": 30,
+        "price": 900,
+        "category": "salud",
+        "available": true
+    },
+    {
+        "id": 2,
+        "name": "Sesion de fisioterapia",
+        "description": "Sesion de rehabilitacion fisica con fisioterapeuta",
+        "duration": 45,
+        "price": 1200,
+        "category": "rehabilitacion",
+        "available": true
+    },
+    {
+        "id": 3,
+        "name": "Consulta medica especializada",
+        "description": "Consulta con medico especialista para casos que requieren atencion especifica",
+        "duration": 60,
+        "price": 2200,
+        "category": "salud",
+        "available": true
+    }
+]

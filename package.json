@@ -1,0 +1,22 @@
+{
+    "name": "1_proyectobackend",
+    "version": "1.0.0",
+    "description": "Administrador de servicios para un sistema de turnos y reservas",
+    "main": "src/app.js",
+    "type": "module",
+    "scripts": {
+        "start": "node src/app.js",
+        "dev": "nodemon src/app.js"
+    },
+    
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "dotenv": "^18.0.1",
+        "express": "^5.2.1"
+    },
+    "devDependencies": {
+        "nodemon": "^3.1.14"
+    }
+}
