@@ -1,14 +1,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
-// NOTA - Como se llega a services.json:
-// import.meta.url es la direccion de ESTE archivo; fileURLToPath la convierte en una ruta
-// normal y path.dirname se queda solo con la carpeta (src/managers).
-// Con ESM no existe __dirname, por eso hay que armarlo asi.
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// ".." significa "subir una carpeta" (managers -> src). Despues se baja a data/services.json
-const DEFAULT_PATH = path.join(__dirname, "..", "data", "services.json");
+
+const DEFAULT_PATH = path.join( //acepta cualquier cantidad de segmentos de ruta (mínimo 1), todos deben ser strings
+  import.meta.dirname,  // → "/home/user/proyecto/src/managers"  (string 1: dónde estoy)
+  "..",                 // → sube un nivel → "src"              (string 2: subir)
+  "data",               // → entra a la carpeta data             (string 3: bajar)
+  "services.json"       // → el archivo concreto                 (string 4: archivo)
+);
+// Resultado: "/home/user/proyecto/src/data/services.json"
 
 // Campos que forman un servicio (sin el id, que se genera internamente)
 // NOTA: esta lista se usa para validar, para copiar campos al crear y para actualizar.
@@ -26,7 +26,7 @@ const SERVICE_FIELDS = [
 // Quien los llama usa await para recibir el resultado (app.js, prueba.js).
 export default class ServiceManager {
   // NOTA: "= DEFAULT_PATH" es un valor por defecto: si no pasan una ruta, usa services.json.
-  // prueba.js pasa otra ruta para no tocar los datos reales.
+  // prueba.js pasa otra ruta para no tocar los datos reales y por eso se usa un constructor 'const manager = new ServiceManager(rutaPrueba);'
   constructor(filePath = DEFAULT_PATH) {
     this.path = filePath;
   }
