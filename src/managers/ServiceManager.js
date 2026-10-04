@@ -22,6 +22,42 @@ const SERVICE_FIELDS = [
   "available",
 ];
 
+// NOTA: error propio para problemas de validacion (datos mal enviados por el cliente).
+// Permite que el router distinga un 400 (error del cliente) de un 500 (error del servidor)
+// con: error instanceof ValidationError
+export class ValidationError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "ValidationError";
+  }
+}
+
+// NOTA: reglas de tipo. typeof "abc" === "number" es false, asi que price: "abc" se rechaza;
+// Number.isFinite tambien descarta NaN e Infinity. Para available se exige un booleano real
+// (true/false), no el texto "si" ni "true".
+const isNonEmptyString = (value) =>
+  typeof value === "string" && value.trim() !== "";
+const isPositiveNumber = (value) =>
+  typeof value === "number" && Number.isFinite(value) && value > 0;
+
+const FIELD_RULES = {
+  name: { isValid: isNonEmptyString, message: "name debe ser un texto no vacio" },
+  description: { isValid: isNonEmptyString, message: "description debe ser un texto no vacio" },
+  duration: { isValid: isPositiveNumber, message: "duration debe ser un numero mayor a 0" },
+  price: { isValid: isPositiveNumber, message: "price debe ser un numero mayor a 0" },
+  category: { isValid: isNonEmptyString, message: "category debe ser un texto no vacio" },
+  available: { isValid: (value) => typeof value === "boolean", message: "available debe ser true o false" },
+};
+
+// Devuelve la lista de mensajes de error de los campos que SI vinieron (los undefined se
+// saltean). Sirve tanto para crear (donde ya se chequeo que no falte ninguno) como para
+// actualizar (donde pueden venir solo algunos campos).
+function getValidationErrors(data) {
+  return SERVICE_FIELDS.filter(
+    (field) => data[field] !== undefined && !FIELD_RULES[field].isValid(data[field]),
+  ).map((field) => FIELD_RULES[field].message);
+}
+
 // NOTA: los metodos publicos son async porque leen y escriben archivos (tardan).
 // Quien los llama usa await para recibir el resultado (app.js, prueba.js).
 export default class ServiceManager {
@@ -57,13 +93,6 @@ export default class ServiceManager {
     return services.length > 0 ? Math.max(...services.map((s) => s.id)) + 1 : 1;
   }
 
-  // NOTA: este bloque comentado es la version vieja (sin filtros). Ya no se usa, se puede borrar.
-  // // Devuelve todos los servicios
-  // async getServices() {
-  //   return await this.#readFile();
-  // }
-
-
 // NOTA - Los parametros de getServices:
 // - { category, available } DESARMA el objeto que llega y saca esas dos propiedades.
 //   La ruta lo arma con getServices({ category, available }).
@@ -97,7 +126,7 @@ async getServices({ category, available } = {}) {
     return services.find((service) => service.id === Number(id)) ?? null;
   }
 
-  // Agrega un servicio. El id se genera solo; lanza un Error si faltan campos
+  // Agrega un servicio. El id se genera solo; lanza ValidationError si faltan campos o son invalidos
   // NOTA: "= {}" evita un error raro si llaman sin datos (por ejemplo, un POST sin body):
   // asi se llega a la validacion y sale el mensaje claro de campos faltantes.
   async addService(serviceData = {}) {
@@ -110,14 +139,20 @@ async getServices({ category, available } = {}) {
     );
 
     if (missingFields.length > 0) {
-      throw new Error(
+      throw new ValidationError(
         `Servicio incompleto. Faltan los campos: ${missingFields.join(", ")}`,
       );
     }
 
     // NOTA: "id" in serviceData pregunta si el objeto trae una propiedad id. Si la trae, se rechaza.
     if ("id" in serviceData) {
-      throw new Error("El id se genera automaticamente y no se puede enviar");
+      throw new ValidationError("El id se genera automaticamente y no se puede enviar");
+    }
+
+    // Faltan campos y id ya se chequearon; ahora se valida el TIPO de cada campo
+    const typeErrors = getValidationErrors(serviceData);
+    if (typeErrors.length > 0) {
+      throw new ValidationError(`Datos invalidos: ${typeErrors.join(", ")}`);
     }
 
     const services = await this.#readFile();
@@ -138,7 +173,8 @@ async getServices({ category, available } = {}) {
     return newService;
   }
 
-  // Actualiza un servicio. Ignora el id recibido; devuelve null si no existe
+  // Actualiza un servicio. Ignora el id recibido; devuelve null si no existe.
+  // Lanza ValidationError si algun campo enviado tiene un tipo invalido
   // NOTA: "= {}" cubre el caso de un PUT sin body (en Express 5 req.body queda undefined)
   async updateService(id, updatedData = {}) {
     const services = await this.#readFile();
@@ -147,6 +183,13 @@ async getServices({ category, available } = {}) {
     // NOTA: return corta la funcion. Devuelve null a quien llamo (la ruta lo usa para el 404)
     // y no se llega a #writeFile, asi que el archivo no se toca.
     if (index === -1) return null;
+
+    // Se valida el tipo de los campos que mandaron (los que no vienen se ignoran).
+    // Va despues del chequeo de existencia: un id inexistente sigue dando 404.
+    const typeErrors = getValidationErrors(updatedData);
+    if (typeErrors.length > 0) {
+      throw new ValidationError(`Datos invalidos: ${typeErrors.join(", ")}`);
+    }
 
     // changes junta solo los campos que mandaron (los que no son undefined)
     const changes = {};
@@ -161,7 +204,7 @@ async getServices({ category, available } = {}) {
     services[index] = {
       ...services[index],
       ...changes,
-      id: services[index].id,
+      id: services[index].id, //inecesario ya que en SERVICE_FIELDS no hay id por lo que no lo tendriamos en changes.
     };
     await this.#writeFile(services);
 

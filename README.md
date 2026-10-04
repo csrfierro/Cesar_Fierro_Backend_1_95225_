@@ -1,8 +1,8 @@
-# Sistema de Turnos y Reservas - Administrador de servicios
+# Sistema de Turnos y Reservas - API de servicios y reservas
 
-Proyecto Node.js (ESM) que implementa una clase `ServiceManager` para gestionar los servicios de un sistema de turnos y reservas. Los datos se guardan en `src/data/services.json`. Incluye un servidor Express con una API basica para consultar los servicios.
+API REST con Node.js (ESM), Express y FileSystem para gestionar los **servicios** disponibles de un sistema de turnos y las **reservas** que hacen los clientes. Los datos se persisten en archivos JSON dentro de `src/data/`, por lo que no se pierden al reiniciar el servidor.
 
-## Instalacion
+## Instalación
 
 1. Clonar el repositorio:
 
@@ -17,14 +17,14 @@ cd <NOMBRE-DE-LA-CARPETA>
 npm install
 ```
 
-3. Crear el archivo `.env` a partir de `.env.example` y completar los valores (ver la seccion siguiente).
+3. Crear el archivo `.env` a partir de `.env.example` y completar los valores (ver la sección siguiente).
 
 ## Variables de entorno
 
-| Variable   | Descripcion                          | Ejemplo       |
-| ---------- | ------------------------------------ | ------------- |
-| `PORT`     | Puerto donde escucha el servidor     | `8080`        |
-| `NODE_ENV` | Entorno de ejecucion                 | `development` |
+| Variable   | Descripción                      | Ejemplo       |
+| ---------- | -------------------------------- | ------------- |
+| `PORT`     | Puerto donde escucha el servidor | `8080`        |
+| `NODE_ENV` | Entorno de ejecución             | `development` |
 
 Ejemplo de `.env`:
 
@@ -33,9 +33,9 @@ PORT=8080
 NODE_ENV=development
 ```
 
-Si falta alguna variable, la aplicacion no arranca y muestra un mensaje indicando cual falta.
+Si falta alguna variable, la aplicación no arranca y muestra un mensaje indicando cuál falta.
 
-## Ejecucion
+## Ejecución
 
 Modo normal:
 
@@ -49,21 +49,41 @@ Modo desarrollo (reinicia al guardar cambios):
 npm run dev
 ```
 
-Con el servidor levantado, `GET http://localhost:8080/api/services` devuelve la lista de servicios.
+Con el servidor levantado, `GET http://localhost:8080/` devuelve un mensaje de estado y `GET http://localhost:8080/api/services` devuelve la lista de servicios.
+
+## Formato de las respuestas
+
+Todas las respuestas son JSON con una de estas dos formas:
+
+```json
+{ "status": "correcto", "payload": "..." }
+```
+
+```json
+{ "status": "error", "message": "descripción del error" }
+```
+
+| Código | Cuándo ocurre                                                         |
+| ------ | --------------------------------------------------------------------- |
+| `200`  | La petición se resolvió correctamente                                 |
+| `201`  | Se creó un recurso nuevo                                              |
+| `400`  | Datos inválidos: campos faltantes, tipos incorrectos, id no numérico  |
+| `404`  | El recurso (servicio, reserva o ruta) no existe                       |
+| `500`  | Error interno del servidor (por ejemplo, falla al leer el archivo)    |
 
 ## Recurso `services`
 
 Cada servicio tiene la siguiente forma:
 
-| Campo         | Tipo    | Descripcion                                         |
-| ------------- | ------- | --------------------------------------------------- |
-| `id`          | number  | Se genera automaticamente, no se recibe desde afuera |
-| `name`        | string  | Nombre del servicio                                 |
-| `description` | string  | Descripcion del servicio                            |
-| `duration`    | number  | Duracion en minutos                                 |
-| `price`       | number  | Precio                                              |
-| `category`    | string  | Categoria del servicio                              |
-| `available`   | boolean | Si el servicio esta disponible para reservar        |
+| Campo         | Tipo    | Validación                                              |
+| ------------- | ------- | ------------------------------------------------------- |
+| `id`          | number  | Se genera automáticamente; **no** se puede enviar       |
+| `name`        | string  | Texto no vacío                                          |
+| `description` | string  | Texto no vacío                                          |
+| `duration`    | number  | Duración en minutos, número mayor a 0                   |
+| `price`       | number  | Número mayor a 0                                        |
+| `category`    | string  | Texto no vacío                                          |
+| `available`   | boolean | `true` o `false` (no se aceptan textos como `"true"`)   |
 
 Ejemplo:
 
@@ -79,40 +99,153 @@ Ejemplo:
 }
 ```
 
-## Metodos de ServiceManager
+### Endpoints de `services`
+
+| Método   | Ruta                    | Descripción                                    |
+| -------- | ----------------------- | ---------------------------------------------- |
+| `GET`    | `/api/services`         | Devuelve todos los servicios (admite filtros)  |
+| `GET`    | `/api/services/:sid`    | Devuelve un servicio por id                    |
+| `POST`   | `/api/services`         | Crea un servicio                               |
+| `PUT`    | `/api/services/:sid`    | Actualiza un servicio                          |
+| `DELETE` | `/api/services/:sid`    | Elimina un servicio y lo devuelve              |
+
+#### `GET /api/services` con filtros
+
+Se pueden combinar dos filtros opcionales por query params:
+
+| Parámetro   | Ejemplo               | Efecto                                   |
+| ----------- | --------------------- | ---------------------------------------- |
+| `category`  | `?category=salud`     | Solo los servicios de esa categoría      |
+| `available` | `?available=true`     | Solo disponibles (`true`) o no (`false`) |
+
+```
+GET /api/services?category=salud&available=true
+```
+
+#### `POST /api/services`
+
+Todos los campos son obligatorios y se valida su tipo. El `id` no se envía: si viene en el body, se rechaza con `400`.
+
+```json
+{
+    "name": "Consulta nutricional",
+    "description": "Evaluacion y plan alimentario personalizado",
+    "duration": 40,
+    "price": 1000,
+    "category": "salud",
+    "available": true
+}
+```
+
+Respuesta `201`: el servicio creado, con su `id` generado. Ejemplos de error `400`:
+
+```json
+{ "status": "error", "message": "Servicio incompleto. Faltan los campos: price, available" }
+```
+
+```json
+{ "status": "error", "message": "Datos invalidos: price debe ser un numero mayor a 0, available debe ser true o false" }
+```
+
+#### `PUT /api/services/:sid`
+
+Se puede enviar solo los campos a modificar; los que se envíen se validan con las mismas reglas que en el `POST`. Si el body trae un `id`, se ignora (el id nunca cambia).
+
+```json
+{ "price": 1300, "available": false }
+```
+
+Devuelve `200` con el servicio actualizado, `400` si algún campo es inválido o `404` si el servicio no existe.
+
+## Recurso `bookings`
+
+Cada reserva tiene la siguiente forma:
+
+| Campo         | Tipo   | Descripción                                                                 |
+| ------------- | ------ | --------------------------------------------------------------------------- |
+| `id`          | number | Se genera automáticamente; **no** se puede enviar                           |
+| `clientName`  | string | Nombre del cliente (obligatorio)                                            |
+| `clientEmail` | string | Email del cliente (obligatorio)                                             |
+| `date`        | string | Fecha de la reserva (obligatorio)                                           |
+| `time`        | string | Hora de la reserva (obligatorio)                                            |
+| `status`      | string | Estado de la reserva (opcional; si no se envía vale `"pendiente"`)          |
+| `services`    | array  | Servicios de la reserva: `{ "service": idDelServicio, "quantity": 1 }`      |
+
+Ejemplo:
+
+```json
+{
+    "id": 1,
+    "clientName": "Ana Perez",
+    "clientEmail": "ana@mail.com",
+    "date": "2026-10-10",
+    "time": "10:00",
+    "status": "pendiente",
+    "services": [
+        { "service": 2, "quantity": 2 },
+        { "service": 3, "quantity": 1 }
+    ]
+}
+```
+
+### Endpoints de `bookings`
+
+| Método | Ruta                                  | Descripción                                          |
+| ------ | ------------------------------------- | ---------------------------------------------------- |
+| `POST` | `/api/bookings`                       | Crea una reserva (siempre inicia con `services` vacío) |
+| `GET`  | `/api/bookings/:bid`                  | Devuelve una reserva por id                          |
+| `POST` | `/api/bookings/:bid/services/:sid`    | Agrega un servicio a una reserva existente           |
+
+#### `POST /api/bookings`
+
+```json
+{
+    "clientName": "Ana Perez",
+    "clientEmail": "ana@mail.com",
+    "date": "2026-10-10",
+    "time": "10:00"
+}
+```
+
+Devuelve `201` con la reserva creada y `services: []`. Si falta algún campo obligatorio o se envía un `id`, devuelve `400`.
+
+#### `POST /api/bookings/:bid/services/:sid`
+
+No lleva body. Valida que existan **tanto la reserva como el servicio** (`404` si alguno no existe). Si el servicio ya estaba en la reserva, se incrementa su `quantity` en 1 en lugar de duplicarlo.
+
+```
+POST /api/bookings/1/services/2   ->  services: [{ "service": 2, "quantity": 1 }]
+POST /api/bookings/1/services/2   ->  services: [{ "service": 2, "quantity": 2 }]
+```
+
+## Managers
+
+Los managers contienen la lógica de lectura y escritura de los archivos JSON. Todos sus métodos son asíncronos (usan `await`) y reciben opcionalmente la ruta del archivo en el constructor (por defecto usan el de `src/data/`).
 
 ```js
 import ServiceManager from './src/managers/ServiceManager.js';
+import BookingManager from './src/managers/BookingManager.js';
 
-const manager = new ServiceManager();
+const serviceManager = new ServiceManager();
+const bookingManager = new BookingManager();
 ```
 
-Todos los metodos son asincronos (usan `await`).
+### `ServiceManager`
 
-### `getServices()`
-
-Devuelve todos los servicios.
-
-```js
-const services = await manager.getServices();
-console.log(services);
-```
-
-### `getServiceById(id)`
-
-Devuelve el servicio con ese id, o `null` si no existe.
+| Método                          | Devuelve                                                                         |
+| ------------------------------- | -------------------------------------------------------------------------------- |
+| `getServices({ category, available })` | Array de servicios; los filtros son opcionales                            |
+| `getServiceById(id)`            | El servicio, o `null` si no existe                                               |
+| `addService(serviceData)`       | El servicio creado con su `id`; lanza `ValidationError` si faltan campos o son inválidos |
+| `updateService(id, updatedData)`| El servicio actualizado, o `null` si no existe; lanza `ValidationError` si hay tipos inválidos |
+| `deleteService(id)`             | El servicio eliminado, o `null` si no existe                                     |
 
 ```js
-const service = await manager.getServiceById(1);
-const notFound = await manager.getServiceById(999); // null
-```
+const todos = await serviceManager.getServices();
+const disponibles = await serviceManager.getServices({ available: true });
+const servicio = await serviceManager.getServiceById(1);
 
-### `addService(serviceData)`
-
-Agrega un servicio y lo devuelve con su `id` generado automaticamente. Los campos `name`, `description`, `duration`, `price`, `category` y `available` son obligatorios; si falta alguno lanza un `Error` indicando cuales.
-
-```js
-const created = await manager.addService({
+const creado = await serviceManager.addService({
     name: 'Consulta nutricional',
     description: 'Evaluacion y plan alimentario personalizado',
     duration: 40,
@@ -122,38 +255,54 @@ const created = await manager.addService({
 });
 
 try {
-    await manager.addService({ name: 'Incompleto' });
+    await serviceManager.addService({ name: 'Incompleto' });
 } catch (error) {
     console.log(error.message); // Servicio incompleto. Faltan los campos: ...
 }
+
+const actualizado = await serviceManager.updateService(2, { price: 1300 });
+const eliminado = await serviceManager.deleteService(3);
 ```
 
-### `updateService(id, updatedData)`
+### `BookingManager`
 
-Actualiza los campos indicados y devuelve el servicio actualizado. El `id` no se puede modificar. Devuelve `null` si el servicio no existe.
+| Método                                 | Devuelve                                                                    |
+| -------------------------------------- | --------------------------------------------------------------------------- |
+| `createBooking(bookingData)`           | La reserva creada con su `id` y `services: []`; lanza `Error` si faltan campos |
+| `getBookingById(id)`                   | La reserva, o `null` si no existe                                           |
+| `addServiceToBooking(bookingId, serviceId)` | La reserva actualizada (suma `quantity` si el servicio ya estaba), o `null` si la reserva no existe |
 
 ```js
-const updated = await manager.updateService(2, { price: 1300, available: false });
-const notFound = await manager.updateService(999, { price: 1 }); // null
+const reserva = await bookingManager.createBooking({
+    clientName: 'Ana Perez',
+    clientEmail: 'ana@mail.com',
+    date: '2026-10-10',
+    time: '10:00'
+});
+
+await bookingManager.addServiceToBooking(reserva.id, 2);
+const buscada = await bookingManager.getBookingById(reserva.id);
 ```
 
-### `deleteService(id)`
-
-Elimina el servicio y lo devuelve. Devuelve `null` si no existe.
-
-```js
-const deleted = await manager.deleteService(3);
-const notFound = await manager.deleteService(999); // null
-```
+> `BookingManager` no valida que el servicio exista: esa comprobación la hace el router (`bookings.router.js`) usando `ServiceManager` antes de llamar a `addServiceToBooking`.
 
 ## Estructura del proyecto
 
 ```
 src/
-  config/env.config.js
-  managers/ServiceManager.js
-  data/services.json
-  app.js
+  app.js                      -> arma la app Express (middlewares y rutas)
+  server.js                   -> levanta el servidor
+  config/
+    env.config.js             -> carga y valida las variables de entorno
+  routes/
+    services.router.js        -> rutas de /api/services
+    bookings.router.js        -> rutas de /api/bookings
+  managers/
+    ServiceManager.js         -> lógica de services.json
+    BookingManager.js         -> lógica de bookings.json
+  data/
+    services.json             -> persistencia de servicios
+    bookings.json             -> persistencia de reservas
 package.json
 .env.example
 .gitignore

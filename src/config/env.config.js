@@ -1,7 +1,6 @@
 import dotenv from 'dotenv';
 
 dotenv.config();
-//prueba
 const requiredVars = ['PORT', 'NODE_ENV'];
 
 const missingVars = requiredVars.filter((name) => !process.env[name]);

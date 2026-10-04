@@ -97,23 +97,5 @@
     "price": 1100,
     "category": "salud",
     "available": true
-  },
-  {
-    "id": 12,
-    "name": "Cirugia estetica",
-    "description": "Cirugias esteticas generales",
-    "duration": 300,
-    "price": 1100,
-    "category": "estetica",
-    "available": true
-  },
-  {
-    "id": 13,
-    "name": "Consulta nutricional avanzada_2",
-    "description": "Seguimiento nutricional mensual",
-    "duration": 400,
-    "price": 100,
-    "category": "salud",
-    "available": true
   }
 ]

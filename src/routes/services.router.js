@@ -2,16 +2,47 @@
 // Router es una "mini aplicación" de Express: agrupa rutas relacionadas (todas las de
 // "services") en un archivo aparte, en vez de tenerlas todas sueltas en app.js.
 import { Router } from "express";
-import ServiceManager from "../managers/ServiceManager.js";
+import ServiceManager, { ValidationError } from "../managers/ServiceManager.js";
 
 // ===== 2. CREACIÓN DEL ROUTER =====
 // NOTA: Router() se ejecuta una sola vez, al cargar este archivo, y devuelve un objeto
 // router al que después le vamos agregando rutas (router.get, router.post, etc.), igual
 // que hacíamos antes con "app.get", "app.post" directamente sobre app.js.
-// El router tiene su propia instancia de ServiceManager (antes vivía en app.js). Como acá
-// no le pasamos ninguna ruta a "new ServiceManager()", usa el archivo real (services.json).
+// El router tiene su propia instancia de ServiceManager (antes vivía en app.js). 
 const router = Router();
+
+//Como acá
+// no le pasamos ninguna ruta a "new ServiceManager()", usa el archivo real (services.json).
+// const serviceManager = new ServiceManager(process.env.SERVICES_FILE_PATH);
+//El constructor es parte de la clase, es el método especial que corre automáticamente cuando escribís new
+// new ServiceManager()
+//         │
+//         ├─ 1. crea objeto vacío: {}
+//         ├─ 2. corre el constructor con ese objeto como "this"
+//         │        this.path = DEFAULT_PATH
+//         │        → el objeto pasa a ser: { path: ".../services.json" }
+//         └─ 3. devuelve ese objeto
+
+// const serviceManager = ese objeto devuelto
+
+// a partir de esta línea, cada vez que en tus rutas hacés 
+// serviceManager.getServiceById(sid), 
+// ese método ya sabe, sin que se lo digas, que tiene que leer services.json — 
+// porque tiene guardado this.path desde el momento en que se creó.
+
+
 const serviceManager = new ServiceManager();
+
+// ---------- Responder segun el tipo de error ----------
+// ValidationError = el cliente mando datos invalidos -> 400.
+// Cualquier otro error (por ejemplo falla al leer/escribir el archivo) -> 500.
+const responderError = (res, error) => {
+  const statusCode = error instanceof ValidationError ? 400 : 500;
+  res.status(statusCode).json({
+    status: "error",
+    message: error.message,
+  });
+};
 
 // ---------- Validar que el id de la URL sea un número ----------
 // Middleware propio: se ejecuta ANTES que la función de la ruta, solo en las rutas que
@@ -21,7 +52,6 @@ const validarId = (req, res, next) => {
   // req.params trae los valores que vienen en la URL, en los lugares marcados con ":".
   // Con GET /api/services/3, req.params vale { sid: '3' } (siempre como texto).
   const { sid } = req.params;
-
   // Number("abc") da NaN (Not a Number). Number.isNaN() chequea eso específicamente
   // (isNaN() a secas tiene casos raros, por eso se usa la versión de Number).
   if (Number.isNaN(Number(sid))) {
@@ -48,9 +78,11 @@ const validarId = (req, res, next) => {
 router.get("/", async (req, res) => {
   try {
     // req.query trae los filtros que vienen después del "?" en la URL
-    // (?category=salud&available=true). Todo lo que llega por acá es TEXTO ('true', no
-    // true); es el manager el que se encarga de convertirlo cuando hace falta.
-    // Estas llaves DESARMAN req.query y sacan esas dos propiedades puntuales.
+    // (?category=salud&available=true). 
+    // Todo lo que llega por acá es TEXTO ('true', no true); es el manager el que se encarga de convertirlo cuando hace falta.
+    // Estas llaves DESARMAN req.query y sacan esas dos propiedades puntuales y crea variables. con ese mismo nombre
+//     const { category, available } = req.query;
+//               ↑ qué sacar              ↑ de dónde
     const { category, available } = req.query;
     // Acá las llaves ARMAN un objeto { category: category, available: available } que el
     // manager desarma en su propio parámetro. La ruta solo junta y pasa los filtros;
@@ -76,10 +108,12 @@ router.get("/", async (req, res) => {
 
 // GET /api/services/:sid  ->  un servicio por id
 // validarId corre primero (segundo argumento, antes de la función de la ruta) y corta acá
+// validarId no se usa con app.use porque se aplicaria a todos los req y no necesitamos eso, solo los que tienen ":sid".
 // si el sid no es un número; si es válido, deja pasar con next() y se sigue para abajo.
 router.get("/:sid", validarId, async (req, res) => {
   try {
-    const { sid } = req.params;
+    //console.log(req);
+    const sid = req.params.sid;
     const service = await serviceManager.getServiceById(sid);
 
     // El manager devuelve null cuando no encuentra el id.
@@ -120,12 +154,9 @@ router.post("/", async (req, res) => {
       payload: newService,
     });
   } catch (error) {
-    // Acá el catch atrapa los errores de addService (campos faltantes, id enviado a
-    // mano), que son errores del CLIENTE por eso van con 400, no con 500.
-    res.status(400).json({
-      status: "error",
-      message: error.message,
-    });
+    // addService lanza ValidationError (campos faltantes, tipos invalidos, id enviado a
+    // mano): son errores del CLIENTE y van con 400. Cualquier otro error va con 500.
+    responderError(res, error);
   }
 });
 
@@ -150,10 +181,8 @@ router.put("/:sid", validarId, async (req, res) => {
       payload: updatedService,
     });
   } catch (error) {
-    res.status(500).json({
-      status: "error",
-      message: error.message,
-    });
+    // updateService lanza ValidationError si algun campo tiene un tipo invalido (400)
+    responderError(res, error);
   }
 });
 

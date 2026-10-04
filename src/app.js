@@ -1,6 +1,7 @@
 // ===== 1. IMPORTACIONES =====
 import express from "express";
 import servicesRouter from "./routes/services.router.js";
+import bookingsRouter from "./routes/bookings.router.js";
 
 // ===== 2. CREACIÓN DE LA APP =====
 // NOTA: acá ya NO se crea el ServiceManager ni se define app.listen. app.js ahora solo
@@ -38,6 +39,9 @@ app.get("/", (req, res) => {
 // Por eso adentro del router las rutas están escritas como "/" y "/:sid", sin repetir el
 // prefijo: Express se lo antepone automáticamente.
 app.use("/api/services", servicesRouter);
+
+// ===== 6. RUTAS DE RESERVAS =====
+app.use("/api/bookings", bookingsRouter);
 
 // ===== RUTA NO ENCONTRADA (404) =====
 const rutaNoEncontrada = (req, res) => {

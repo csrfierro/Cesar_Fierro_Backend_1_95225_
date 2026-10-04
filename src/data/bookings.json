@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "clientName": "Ana Perez",
+    "clientEmail": "ana@mail.com",
+    "date": "2026-10-10",
+    "time": "10:00",
+    "status": "pendiente",
+    "services": []
+  },
+  {
+    "id": 2,
+    "clientName": "Ana Perez",
+    "clientEmail": "ana@mail.com",
+    "date": "2026-10-10",
+    "time": "10:00",
+    "status": "pendiente",
+    "services": []
+  },
+  {
+    "id": 3,
+    "clientName": "Cesar Fierro",
+    "clientEmail": "cesar@fierro.com",
+    "date": "2026-10-11",
+    "time": "11:00",
+    "status": "confirmado",
+    "services": [
+      {
+        "service": 1,
+        "quantity": 2
+      },
+      {
+        "service": 5,
+        "quantity": 1
+      }
+    ]
+  }
+]
