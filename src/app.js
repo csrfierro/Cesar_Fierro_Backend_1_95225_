@@ -1,6 +1,17 @@
 // ===== 1. IMPORTACIONES =====
+
+// NOTA: Express es el framework que recibe las peticiones HTTP y las dirige a cada ruta.
+// Se instala con npm (está en "dependencies") y se importa sin llaves porque es un
+// export default: una función, express(), que crea la aplicación más abajo.
 import express from "express";
+
+// NOTA: archivo propio, por eso lleva ruta relativa ("./"), contada desde src/. La extensión
+// ".js" es obligatoria en ESM. Sin llaves = export default: el router ya armado con las
+// rutas de services. El nombre lo elegimos nosotros. Se engancha abajo con app.use.
 import servicesRouter from "./routes/services.router.js";
+
+// NOTA: igual que el anterior, con las rutas de reservas. Importar un router no lo activa:
+// recién atiende peticiones cuando se monta con app.use("/api/bookings", bookingsRouter).
 import bookingsRouter from "./routes/bookings.router.js";
 
 // ===== 2. CREACIÓN DE LA APP =====
