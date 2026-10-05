@@ -1,6 +1,6 @@
 # Sistema de Turnos y Reservas - API de servicios y reservas
 
-API REST con Node.js (ESM), Express y FileSystem para gestionar los **servicios** disponibles de un sistema de turnos y las **reservas** que hacen los clientes. Los datos se persisten en archivos JSON dentro de `src/data/`, por lo que no se pierden al reiniciar el servidor.
+API REST con Node.js (ESM), Express y FileSystem para gestionar los **servicios** disponibles de un sistema de turnos y las **reservas** que hacen los clientes. Los datos se persisten en archivos JSON dentro de `src/data/`, por lo que no se pierden al reiniciar el servidor. El proyecto sigue una **arquitectura en capas** (router → controller → service → repository → DAO).
 
 ## Instalación
 
@@ -227,87 +227,46 @@ POST /api/bookings/1/services/2   ->  services: [{ "service": 2, "quantity": 1 }
 POST /api/bookings/1/services/2   ->  services: [{ "service": 2, "quantity": 2 }]
 ```
 
-## Managers
+## Arquitectura en capas
 
-Los managers contienen la lógica de lectura y escritura de los archivos JSON. Todos sus métodos son asíncronos (usan `await`) y reciben opcionalmente la ruta del archivo en el constructor (por defecto usan el de `src/data/`).
+Cada petición atraviesa las capas en este orden, y cada capa solo habla con la siguiente:
 
-```js
-import ServiceManager from './src/managers/ServiceManager.js';
-import BookingManager from './src/managers/BookingManager.js';
-
-const serviceManager = new ServiceManager();
-const bookingManager = new BookingManager();
+```
+router → controller → service → repository → DAO → archivo JSON
 ```
 
-### `ServiceManager`
+| Capa           | Responsabilidad                                                                                  | Qué NO hace                              |
+| -------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------- |
+| **Router**     | Define los endpoints y los conecta al controller (y a los middlewares de `src/middlewares/`, como validar el id) | Lógica de cualquier tipo                 |
+| **Controller** | Lee `req`, llama al service y responde con `res` (traduce errores a códigos HTTP)                | Reglas de negocio ni acceso a archivos   |
+| **Service**    | Reglas de negocio: validaciones, filtros, existencia de recursos, suma de `quantity`             | Usar `req`/`res` ni tocar el JSON        |
+| **Repository** | Métodos de acceso a datos (`getAll`, `getById`, `create`, `update`, `delete`) que esconden cómo se guarda | Reglas de negocio                |
+| **DAO**        | Lee y escribe directamente el archivo JSON                                                       | Reglas de negocio                        |
 
-| Método                          | Devuelve                                                                         |
-| ------------------------------- | -------------------------------------------------------------------------------- |
-| `getServices({ category, available })` | Array de servicios; los filtros son opcionales                            |
-| `getServiceById(id)`            | El servicio, o `null` si no existe                                               |
-| `addService(serviceData)`       | El servicio creado con su `id`; lanza `ValidationError` si faltan campos o son inválidos |
-| `updateService(id, updatedData)`| El servicio actualizado, o `null` si no existe; lanza `ValidationError` si hay tipos inválidos |
-| `deleteService(id)`             | El servicio eliminado, o `null` si no existe                                     |
+**¿Por qué separar repository y DAO?** El service solo conoce al repository. Cuando la persistencia migre de archivos JSON a MongoDB (Mongoose), alcanza con reemplazar el DAO; controllers, services y repositories no cambian.
 
-```js
-const todos = await serviceManager.getServices();
-const disponibles = await serviceManager.getServices({ available: true });
-const servicio = await serviceManager.getServiceById(1);
+### Funciones por capa
 
-const creado = await serviceManager.addService({
-    name: 'Consulta nutricional',
-    description: 'Evaluacion y plan alimentario personalizado',
-    duration: 40,
-    price: 1000,
-    category: 'salud',
-    available: true
-});
+| Recurso    | Controller y Service                                                                 | Repository y DAO                          |
+| ---------- | ------------------------------------------------------------------------------------ | ----------------------------------------- |
+| `services` | `getServices`, `getServiceById`, `createService`, `updateService`, `deleteService`   | `getAll`, `getById`, `create`, `update`, `delete` |
+| `bookings` | `getBookings`, `createBooking`, `getBookingById`, `addServiceToBooking`              | `getAll`, `create`, `getById`, `update`   |
 
-try {
-    await serviceManager.addService({ name: 'Incompleto' });
-} catch (error) {
-    console.log(error.message); // Servicio incompleto. Faltan los campos: ...
-}
+> `getBookings` / `getAll` de bookings se mantienen para conservar el `GET /api/bookings?status=` que ya existía.
 
-const actualizado = await serviceManager.updateService(2, { price: 1300 });
-const eliminado = await serviceManager.deleteService(3);
-```
+### Regla de negocio clave
 
-### `BookingManager`
+Si el mismo servicio se agrega dos veces a una reserva, se incrementa su `quantity` en lugar de duplicarlo. Esa lógica está en `bookings.service.js` (`addServiceToBooking`): el service lee la reserva, comprueba que reserva y servicio existan, calcula el nuevo array `services` y se lo pasa a `repository.update`. El DAO solo guarda lo que recibe.
 
-| Método                                 | Devuelve                                                                    |
-| -------------------------------------- | --------------------------------------------------------------------------- |
-| `getBookings({ status })`              | Array de reservas; el filtro `status` es opcional                           |
-| `createBooking(bookingData)`           | La reserva creada con su `id` y `services: []`; lanza `Error` si faltan campos |
-| `getBookingById(id)`                   | La reserva, o `null` si no existe                                           |
-| `addServiceToBooking(bookingId, serviceId)` | La reserva actualizada (suma `quantity` si el servicio ya estaba), o `null` si la reserva no existe |
+### Manejo de errores
 
-```js
-const todas = await bookingManager.getBookings();
-const confirmadas = await bookingManager.getBookings({ status: 'confirmado' });
+Los services no conocen HTTP: lanzan errores propios (`src/utils/errors.js`) y el controller los traduce con `responderError`:
 
-const reserva = await bookingManager.createBooking({
-    clientName: 'Ana Perez',
-    clientEmail: 'ana@mail.com',
-    date: '2026-10-10',
-    time: '10:00'
-});
-
-await bookingManager.addServiceToBooking(reserva.id, 2);
-const buscada = await bookingManager.getBookingById(reserva.id);
-```
-
-> `BookingManager` no valida que el servicio exista: esa comprobación la hace el controller (`bookings.controller.js`) usando `ServiceManager` antes de llamar a `addServiceToBooking`.
-
-## Arquitectura
-
-Cada petición pasa por tres capas, cada una con una sola responsabilidad:
-
-| Capa           | Responsabilidad                                                                           |
-| -------------- | ----------------------------------------------------------------------------------------- |
-| **Router**     | Define qué ruta y método atiende cada controller (y los middlewares previos, como validar el id) |
-| **Controller** | Lee `req`, llama al manager, elige el código de estado y arma la respuesta                |
-| **Manager**    | Lee y escribe el archivo JSON y aplica las validaciones de los datos                      |
+| Error             | Código |
+| ----------------- | ------ |
+| `ValidationError` | `400`  |
+| `NotFoundError`   | `404`  |
+| Cualquier otro    | `500`  |
 
 ## Estructura del proyecto
 
@@ -319,14 +278,26 @@ src/
     services.router.js           -> rutas de /api/services
     bookings.router.js           -> rutas de /api/bookings
   controllers/
-    services.controller.js       -> atiende las peticiones de services
-    bookings.controller.js       -> atiende las peticiones de bookings
-  managers/
-    ServiceManager.js            -> lógica de services.json
-    BookingManager.js            -> lógica de bookings.json
+    services.controller.js       -> lee req, llama al service, responde con res
+    bookings.controller.js
+  services/
+    services.service.js          -> reglas de negocio de services
+    bookings.service.js          -> reglas de negocio de bookings (suma de quantity)
+  repositories/
+    services.repository.js       -> acceso a datos de services
+    bookings.repository.js       -> acceso a datos de bookings
+  dao/
+    services.dao.js              -> lee/escribe services.json
+    bookings.dao.js              -> lee/escribe bookings.json
   data/
     services.json                -> persistencia de servicios
     bookings.json                -> persistencia de reservas
+  middlewares/
+    validarId.js                 -> valida que :sid sea numerico (services)
+    validarIds.js                -> valida que :bid y :sid sean numericos (bookings)
+  utils/
+    errors.js                    -> ValidationError y NotFoundError
+    responderError.js            -> traduce errores del service a códigos HTTP
   config/
     env.config.js                -> carga y valida las variables de entorno
 package.json
