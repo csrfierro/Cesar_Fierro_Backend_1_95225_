@@ -93,6 +93,8 @@ async getBookings({status}={}) {
     const bookings = await this.#readFile();
     const booking = bookings.find((b) => b.id === Number(bookingId));
 
+    if (!booking) return null;
+
     const item = booking.services.find((s) => s.service === Number(serviceId));
 
     if (item) {

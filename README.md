@@ -192,9 +192,18 @@ Ejemplo:
 
 | Método | Ruta                                  | Descripción                                          |
 | ------ | ------------------------------------- | ---------------------------------------------------- |
+| `GET`  | `/api/bookings`                       | Devuelve todas las reservas (admite el filtro `status`) |
 | `POST` | `/api/bookings`                       | Crea una reserva (siempre inicia con `services` vacío) |
 | `GET`  | `/api/bookings/:bid`                  | Devuelve una reserva por id                          |
 | `POST` | `/api/bookings/:bid/services/:sid`    | Agrega un servicio a una reserva existente           |
+
+#### `GET /api/bookings` con filtro
+
+Filtro opcional por query param: `?status=confirmado` devuelve solo las reservas con ese estado.
+
+```
+GET /api/bookings?status=pendiente
+```
 
 #### `POST /api/bookings`
 
@@ -268,11 +277,15 @@ const eliminado = await serviceManager.deleteService(3);
 
 | Método                                 | Devuelve                                                                    |
 | -------------------------------------- | --------------------------------------------------------------------------- |
+| `getBookings({ status })`              | Array de reservas; el filtro `status` es opcional                           |
 | `createBooking(bookingData)`           | La reserva creada con su `id` y `services: []`; lanza `Error` si faltan campos |
 | `getBookingById(id)`                   | La reserva, o `null` si no existe                                           |
 | `addServiceToBooking(bookingId, serviceId)` | La reserva actualizada (suma `quantity` si el servicio ya estaba), o `null` si la reserva no existe |
 
 ```js
+const todas = await bookingManager.getBookings();
+const confirmadas = await bookingManager.getBookings({ status: 'confirmado' });
+
 const reserva = await bookingManager.createBooking({
     clientName: 'Ana Perez',
     clientEmail: 'ana@mail.com',
@@ -284,25 +297,38 @@ await bookingManager.addServiceToBooking(reserva.id, 2);
 const buscada = await bookingManager.getBookingById(reserva.id);
 ```
 
-> `BookingManager` no valida que el servicio exista: esa comprobación la hace el router (`bookings.router.js`) usando `ServiceManager` antes de llamar a `addServiceToBooking`.
+> `BookingManager` no valida que el servicio exista: esa comprobación la hace el controller (`bookings.controller.js`) usando `ServiceManager` antes de llamar a `addServiceToBooking`.
+
+## Arquitectura
+
+Cada petición pasa por tres capas, cada una con una sola responsabilidad:
+
+| Capa           | Responsabilidad                                                                           |
+| -------------- | ----------------------------------------------------------------------------------------- |
+| **Router**     | Define qué ruta y método atiende cada controller (y los middlewares previos, como validar el id) |
+| **Controller** | Lee `req`, llama al manager, elige el código de estado y arma la respuesta                |
+| **Manager**    | Lee y escribe el archivo JSON y aplica las validaciones de los datos                      |
 
 ## Estructura del proyecto
 
 ```
 src/
-  app.js                      -> arma la app Express (middlewares y rutas)
-  server.js                   -> levanta el servidor
-  config/
-    env.config.js             -> carga y valida las variables de entorno
+  app.js                         -> arma la app Express (middlewares y rutas)
+  server.js                      -> levanta el servidor
   routes/
-    services.router.js        -> rutas de /api/services
-    bookings.router.js        -> rutas de /api/bookings
+    services.router.js           -> rutas de /api/services
+    bookings.router.js           -> rutas de /api/bookings
+  controllers/
+    services.controller.js       -> atiende las peticiones de services
+    bookings.controller.js       -> atiende las peticiones de bookings
   managers/
-    ServiceManager.js         -> lógica de services.json
-    BookingManager.js         -> lógica de bookings.json
+    ServiceManager.js            -> lógica de services.json
+    BookingManager.js            -> lógica de bookings.json
   data/
-    services.json             -> persistencia de servicios
-    bookings.json             -> persistencia de reservas
+    services.json                -> persistencia de servicios
+    bookings.json                -> persistencia de reservas
+  config/
+    env.config.js                -> carga y valida las variables de entorno
 package.json
 .env.example
 .gitignore

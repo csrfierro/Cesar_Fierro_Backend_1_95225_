@@ -21,16 +21,10 @@ const SERVICE_FIELDS = [
   "category",
   "available",
 ];
-
-// NOTA: error propio para problemas de validacion (datos mal enviados por el cliente).
-// Permite que el router distinga un 400 (error del cliente) de un 500 (error del servidor)
-// con: error instanceof ValidationError
-export class ValidationError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "ValidationError";
-  }
-}
+// NOTA: error propio para datos invalidos (culpa del cliente). Hereda de Error, asi que se
+// lanza con throw y tiene .message; sin constructor, JavaScript guarda el mensaje solo.
+// El controller lo distingue con: error instanceof ValidationError ? 400 : 500
+export class ValidationError extends Error {};
 
 // NOTA: reglas de tipo. typeof "abc" === "number" es false, asi que price: "abc" se rechaza;
 // Number.isFinite tambien descarta NaN e Infinity. Para available se exige un booleano real
