@@ -34,5 +34,14 @@
         "quantity": 1
       }
     ]
+  },
+  {
+    "id": 4,
+    "clientName": "Serrana Villa",
+    "clientEmail": "serrana@villa.com",
+    "date": "2026-10-12",
+    "time": "12:00",
+    "status": "confirmado",
+    "services": []
   }
 ]
