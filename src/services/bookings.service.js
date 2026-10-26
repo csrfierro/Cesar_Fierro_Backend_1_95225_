@@ -16,12 +16,10 @@ export default class BookingsService {
     this.servicesRepository = servicesRepository;
   }
 
+  // CAMBIO: el filtro por status ahora lo resuelve MongoDB, ya no se filtra en memoria
   async getBookings({ status } = {}) {
-    let bookings = await this.bookingsRepository.getAll();
-    if (status) {
-      bookings = bookings.filter((booking) => booking.status === status);
-    }
-    return bookings;
+    const filter = status ? { status } : {};
+    return this.bookingsRepository.getAll(filter);
   }
 
   async createBooking(bookingData = {}) {
@@ -37,7 +35,8 @@ export default class BookingsService {
       );
     }
 
-    if ("id" in bookingData) {
+    // CAMBIO: en Mongo el identificador se llama _id, asi que tambien se rechaza
+    if ("id" in bookingData || "_id" in bookingData) {
       throw new ValidationError("El id se genera automaticamente y no se puede enviar");
     }
 
@@ -50,7 +49,6 @@ export default class BookingsService {
       services: [],
     });
   }
-
 
   async getBookingById(id) {
     const booking = await this.bookingsRepository.getById(id);
@@ -69,12 +67,16 @@ export default class BookingsService {
 
     // Se trabaja sobre una copia para no mutar el objeto que devolvio el repository
     const services = booking.services.map((item) => ({ ...item }));
-    const item = services.find((s) => s.service === service.id);
+
+    // CAMBIO: los ids de Mongo son ObjectId (objetos) y === compara referencias, no valores.
+    // Por eso se pasan a texto con String() antes de comparar.
+    const item = services.find((s) => String(s.service) === String(service._id));
 
     if (item) {
       item.quantity += 1;
     } else {
-      services.push({ service: service.id, quantity: 1 });
+      // CAMBIO: service._id en lugar de service.id
+      services.push({ service: service._id, quantity: 1 });
     }
 
     return this.bookingsRepository.update(bookingId, { services });
