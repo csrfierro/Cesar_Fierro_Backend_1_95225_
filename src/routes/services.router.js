@@ -11,8 +11,8 @@ import {
   updateService,
   deleteService,
 } from "../controllers/services.controller.js";
-// NOTA: validarId vive en middlewares/: el router solo lo engancha a las rutas con ":sid".
-import { validarId } from "../middlewares/validarId.js";
+// NOTA: validarIds vive en middlewares/: el router solo lo engancha a las rutas con ":sid".
+import { validarIds } from "../middlewares/validarIds.js";
 
 // ===== 2. CREACIÓN DEL ROUTER =====
 // NOTA: Router() se ejecuta una sola vez, al cargar este archivo, y devuelve un objeto
@@ -28,10 +28,10 @@ const router = Router();
 // ejecuta cuando llega la petición. El orden de los argumentos es el orden de ejecución:
 // primero validarId (si está), después el controller.
 router.get("/", getServices);
-router.get("/:sid", validarId, getServiceById);
+router.get("/:sid", validarIds, getServiceById);
 router.post("/", createService);
-router.put("/:sid", validarId, updateService);
-router.delete("/:sid", validarId, deleteService);
+router.put("/:sid", validarIds, updateService);
+router.delete("/:sid", validarIds, deleteService);
 
 // NOTA: export default (y no "export { router }") porque app.js necesita UN solo router
 // para montar; con default se puede importar con cualquier nombre.
