@@ -1,0 +1,40 @@
+<h1>{{title}}</h1>
+
+{{#if services.length}}
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Nombre</th>
+      <th>Categoría</th>
+      <th>Duración (min)</th>
+      <th>Precio</th>
+      <th>Disponible</th>
+      <th>Detalles</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each services}}
+    <tr>
+      <td>{{this._id}}</td>
+      <td><strong>{{this.name}}</strong></td>
+      <td>{{this.category}}</td>
+      <td>{{this.duration}}</td>
+      <td>${{this.price}}</td>
+      <td>
+        {{#if this.available}}
+          <span class="badge badge-success">Sí</span>
+        {{else}}
+          <span class="badge badge-danger">No</span>
+        {{/if}}
+      </td>
+      <td>
+        <a href="/views/services/{{this._id}}" class="btn btn-primary">Ver detalle</a>
+      </td>
+    </tr>
+    {{/each}}
+  </tbody>
+</table>
+{{else}}
+<p>No hay servicios registrados actualmente.</p>
+{{/if}}

@@ -1,0 +1,19 @@
+<h1>{{title}}</h1>
+
+<div class="detail-card">
+  <h2>{{service.name}}</h2>
+  <p><strong>ID:</strong> {{service._id}}</p>
+  <p><strong>Descripción:</strong> {{service.description}}</p>
+  <p><strong>Categoría:</strong> {{service.category}}</p>
+  <p><strong>Duración:</strong> {{service.duration}} minutos</p>
+  <p><strong>Precio:</strong> ${{service.price}}</p>
+  <p><strong>Disponible:</strong>
+    {{#if service.available}}
+      <span class="badge badge-success">Sí</span>
+    {{else}}
+      <span class="badge badge-danger">No</span>
+    {{/if}}
+  </p>
+  <br>
+  <a href="/views" class="btn btn-secondary">&larr; Volver a la lista</a>
+</div>
