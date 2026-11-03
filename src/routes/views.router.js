@@ -52,6 +52,21 @@ router.get("/views/services/:sid", async (req, res) => {
   }
 });
 
+// GET /views/bookings -> lista de reservas con Handlebars
+router.get("/views/bookings", async (req, res) => {
+  try {
+    // NOTA: obtenemos todas las reservas desde MongoDB para pasarlas a la plantilla.
+    const bookings = await bookingsService.getBookings({});
+    // NOTA: res.render busca "views/bookings.handlebars" y lo inyecta en el layout "main".
+    res.render("bookings", {
+      title: "Lista de Reservas",
+      bookings: bookings,
+    });
+  } catch (error) {
+    res.status(500).send("Error al cargar las reservas");
+  }
+});
+
 // GET /views/booking/:bid -> detalle de una reserva con Handlebars
 router.get("/views/booking/:bid", async (req, res) => {
   try {
