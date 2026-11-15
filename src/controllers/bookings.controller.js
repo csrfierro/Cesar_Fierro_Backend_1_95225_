@@ -44,3 +44,29 @@ export const addServiceToBooking = async (req, res) => {
     responderError(res, error);
   }
 };
+
+// PATCH /api/bookings/:bid/status -> actualiza el estado de una reserva
+export const updateStatus = async (req, res) => {
+  try {
+    const { bid: bookingId } = req.params;
+    const { status } = req.body;
+    if (!status) {
+      throw new Error("Se requiere el campo 'status' en el body");
+    }
+    const updatedBooking = await bookingsService.updateStatus(bookingId, status);
+    res.status(200).json({ status: "correcto", payload: updatedBooking });
+  } catch (error) {
+    responderError(res, error);
+  }
+};
+
+// DELETE /api/bookings/:bid -> elimina una reserva
+export const deleteBooking = async (req, res) => {
+  try {
+    const { bid: bookingId } = req.params;
+    await bookingsService.deleteBooking(bookingId);
+    res.status(200).json({ status: "correcto", message: "Reserva eliminada" });
+  } catch (error) {
+    responderError(res, error);
+  }
+};

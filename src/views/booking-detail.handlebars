@@ -1,0 +1,60 @@
+<h1>{{title}}</h1>
+
+<div class="detail-card">
+  <h2>Datos de la Reserva</h2>
+  <p><strong>ID:</strong> {{booking._id}}</p>
+  <p><strong>Cliente:</strong> {{booking.clientName}}</p>
+  <p><strong>Email:</strong> {{booking.clientEmail}}</p>
+  <p><strong>Fecha:</strong> {{booking.date}}</p>
+  <p><strong>Hora:</strong> {{booking.time}}</p>
+  <p><strong>Estado:</strong>
+    <span id="booking-status-badge" class="badge">
+      {{#if (eq booking.status "pendiente")}}
+        <span class="badge badge-warning">Pendiente</span>
+      {{else if (eq booking.status "confirmada")}}
+        <span class="badge badge-success">Confirmada</span>
+      {{else if (eq booking.status "cancelada")}}
+        <span class="badge badge-danger">Cancelada</span>
+      {{else}}
+        <span class="badge">{{booking.status}}</span>
+      {{/if}}
+    </span>
+  </p>
+  {{#if booking.createdAt}}
+    <p><strong>Creada el:</strong> {{booking.createdAt}}</p>
+  {{/if}}
+  {{#if booking.updatedAt}}
+    <p><strong>Actualizada el:</strong> {{booking.updatedAt}}</p>
+  {{/if}}
+</div>
+
+{{#if booking.services.length}}
+<div class="detail-card">
+  <h2>Servicios de la Reserva</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Servicio (ID)</th>
+        <th>Cantidad</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each booking.services}}
+      <tr>
+        <td>{{@index}}</td>
+        <td><strong>{{this.service}}</strong></td>
+        <td>{{this.quantity}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+</div>
+{{else}}
+<div class="detail-card">
+  <p>No se han agregado servicios a esta reserva aún.</p>
+</div>
+{{/if}}
+
+<br>
+<a href="/views/bookings" class="btn btn-secondary">&larr; Volver a la lista</a>

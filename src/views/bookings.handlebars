@@ -1,0 +1,44 @@
+<h1>{{title}}</h1>
+
+{{#if bookings.length}}
+<table id="bookings-table">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Cliente</th>
+      <th>Email</th>
+      <th>Fecha</th>
+      <th>Hora</th>
+      <th>Estado</th>
+      <th>Detalles</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each bookings}}
+    <tr data-booking-id="{{this._id}}">
+      <td>{{this._id}}</td>
+      <td><strong>{{this.clientName}}</strong></td>
+      <td>{{this.clientEmail}}</td>
+      <td>{{this.date}}</td>
+      <td>{{this.time}}</td>
+      <td>
+        {{#if (eq this.status "pendiente")}}
+          <span class="badge badge-warning">Pendiente</span>
+        {{else if (eq this.status "confirmada")}}
+          <span class="badge badge-success">Confirmada</span>
+        {{else if (eq this.status "cancelada")}}
+          <span class="badge badge-danger">Cancelada</span>
+        {{else}}
+          <span class="badge">{{this.status}}</span>
+        {{/if}}
+      </td>
+      <td>
+        <a href="/views/booking/{{this._id}}" class="btn btn-primary">Ver detalle</a>
+      </td>
+    </tr>
+    {{/each}}
+  </tbody>
+</table>
+{{else}}
+<p>No hay reservas registradas actualmente.</p>
+{{/if}}
