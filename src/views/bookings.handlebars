@@ -1,7 +1,7 @@
 <h1>{{title}}</h1>
 
 {{#if bookings.length}}
-<table>
+<table id="bookings-table">
   <thead>
     <tr>
       <th>#</th>
@@ -15,7 +15,7 @@
   </thead>
   <tbody>
     {{#each bookings}}
-    <tr>
+    <tr data-booking-id="{{this._id}}">
       <td>{{this._id}}</td>
       <td><strong>{{this.clientName}}</strong></td>
       <td>{{this.clientEmail}}</td>

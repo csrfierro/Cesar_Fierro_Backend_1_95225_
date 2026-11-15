@@ -1,9 +1,22 @@
 import ServicesService from "../services/services.service.js";
 import { responderError } from "../utils/responderError.js";
+import { getIO } from "../socket/index.js";
 
 // NOTA: el controller es la unica capa (junto al router) que conoce req/res. Lee la peticion,
 // llama al service y arma la respuesta. Las reglas de negocio y los errores los resuelve el service.
 const servicesService = new ServicesService();
+
+/**
+ * Emite un evento de servicio a todos los clientes conectados.
+ */
+const emitServiceEvent = (event, data) => {
+  try {
+    const io = getIO();
+    io.emit(event, data);
+  } catch {
+    // Socket.io no inicializado — silenciar error
+  }
+};
 
 // GET /api/services -> todos los servicios (filtros opcionales ?category= y ?available=)
 export const getServices = async (req, res) => {
@@ -30,6 +43,7 @@ export const getServiceById = async (req, res) => {
 export const createService = async (req, res) => {
   try {
     const newService = await servicesService.createService(req.body);
+    emitServiceEvent("service-created", newService);
     res.status(201).json({ status: "correcto", payload: newService });
   } catch (error) {
     responderError(res, error);
@@ -40,6 +54,7 @@ export const createService = async (req, res) => {
 export const updateService = async (req, res) => {
   try {
     const updatedService = await servicesService.updateService(req.params.sid, req.body);
+    emitServiceEvent("service-updated", updatedService);
     res.status(200).json({ status: "correcto", payload: updatedService });
   } catch (error) {
     responderError(res, error);
@@ -50,6 +65,7 @@ export const updateService = async (req, res) => {
 export const deleteService = async (req, res) => {
   try {
     const deletedService = await servicesService.deleteService(req.params.sid);
+    emitServiceEvent("service-deleted", deletedService);
     res.status(200).json({ status: "correcto", payload: deletedService });
   } catch (error) {
     responderError(res, error);

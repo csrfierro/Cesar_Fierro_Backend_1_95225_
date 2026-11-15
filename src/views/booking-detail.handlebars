@@ -8,15 +8,17 @@
   <p><strong>Fecha:</strong> {{booking.date}}</p>
   <p><strong>Hora:</strong> {{booking.time}}</p>
   <p><strong>Estado:</strong>
-    {{#if (eq booking.status "pendiente")}}
-      <span class="badge badge-warning">Pendiente</span>
-    {{else if (eq booking.status "confirmada")}}
-      <span class="badge badge-success">Confirmada</span>
-    {{else if (eq booking.status "cancelada")}}
-      <span class="badge badge-danger">Cancelada</span>
-    {{else}}
-      <span class="badge">{{booking.status}}</span>
-    {{/if}}
+    <span id="booking-status-badge" class="badge">
+      {{#if (eq booking.status "pendiente")}}
+        <span class="badge badge-warning">Pendiente</span>
+      {{else if (eq booking.status "confirmada")}}
+        <span class="badge badge-success">Confirmada</span>
+      {{else if (eq booking.status "cancelada")}}
+        <span class="badge badge-danger">Cancelada</span>
+      {{else}}
+        <span class="badge">{{booking.status}}</span>
+      {{/if}}
+    </span>
   </p>
   {{#if booking.createdAt}}
     <p><strong>Creada el:</strong> {{booking.createdAt}}</p>

@@ -77,13 +77,25 @@ function addBookingRow(booking) {
   newRow.style.animation = "fadeIn 0.5s ease-in-out";
   newRow.style.backgroundColor = "#e8f5e9";
 
+  let statusBadge = "";
+  if (booking.status === "pendiente") {
+    statusBadge = '<span class="badge badge-warning">Pendiente</span>';
+  } else if (booking.status === "confirmada") {
+    statusBadge = '<span class="badge badge-success">Confirmada</span>';
+  } else if (booking.status === "cancelada") {
+    statusBadge = '<span class="badge badge-danger">Cancelada</span>';
+  } else {
+    statusBadge = `<span class="badge">${booking.status}</span>`;
+  }
+
   newRow.innerHTML = `
-    <td>${booking.clientName}</td>
+    <td>${booking._id}</td>
+    <td><strong>${booking.clientName}</strong></td>
     <td>${booking.clientEmail}</td>
-    <td>${formatDate(booking.date)}</td>
+    <td>${booking.date}</td>
     <td>${booking.time}</td>
-    <td>${getStatusBadge(booking.status)}</td>
-    <td>${formatDate(booking.createdAt)}</td>
+    <td>${statusBadge}</td>
+    <td><a href="/views/booking/${booking._id}" class="btn btn-primary">Ver detalle</a></td>
   `;
 
   tbody.insertBefore(newRow, tbody.firstChild);
@@ -126,6 +138,47 @@ function updateBookingRow(data) {
 }
 
 /**
+ * Actualiza el badge de estado en la página de detalle de reserva (/views/booking/:id).
+ */
+function updateBookingDetailPage(data) {
+  const badge = document.getElementById("booking-status-badge");
+  if (!badge) return;
+
+  const status = data.status || data.newStatus;
+  let badgeClass = "";
+  let label = status;
+
+  if (status === "pendiente") {
+    badgeClass = "badge-warning";
+    label = "Pendiente";
+  } else if (status === "confirmada") {
+    badgeClass = "badge-success";
+    label = "Confirmada";
+  } else if (status === "cancelada") {
+    badgeClass = "badge-danger";
+    label = "Cancelada";
+  }
+
+  badge.className = `badge ${badgeClass}`;
+  badge.textContent = label;
+
+  badge.style.transition = "opacity 0.3s ease-out, transform 0.3s ease-out";
+  badge.style.opacity = "0.5";
+  badge.style.transform = "scale(0.95)";
+  setTimeout(() => {
+    badge.style.opacity = "1";
+    badge.style.transform = "scale(1)";
+  }, 300);
+
+  if (data.oldStatus && data.newStatus) {
+    showToast(
+      `Reserva actualizada: ${data.oldStatus} -> ${data.newStatus}`,
+      "info"
+    );
+  }
+}
+
+/**
  * Elimina una fila de la tabla por booking ID.
  */
 function deleteBookingRow(data) {
@@ -141,6 +194,105 @@ function deleteBookingRow(data) {
     showToast(`Reserva de ${data.clientName} eliminada`, "error");
   }, 500);
 }
+/**
+ * Actualiza la página de detalle de reserva cuando se elimina (redirige a lista).
+ */
+function deleteBookingDetailPage(data) {
+  const bookingId = data.bookingId || data._id;
+  
+  // Verificar si estamos viendo esta reserva específica en el detail-page
+  const currentPath = window.location.pathname;
+  if (currentPath.includes(`/views/booking/${bookingId}`)) {
+    showToast(`Reserva de ${data.clientName} eliminada`, "error");
+    
+    // Redirigir a la lista después de un breve retraso
+    setTimeout(() => {
+      window.location.href = "/views/bookings";
+    }, 1500);
+  }
+}
+
+/**
+ * Agrega una nueva fila de servicio a la tabla en /views.
+ */
+function addServiceRow(service) {
+  const tbody = document.querySelector("#services-table tbody");
+  if (!tbody) return;
+
+  const newRow = document.createElement("tr");
+  newRow.setAttribute("data-service-id", service._id);
+  newRow.style.animation = "fadeIn 0.5s ease-in-out";
+  newRow.style.backgroundColor = "#e8f5e9";
+
+  const statusBadge = service.available
+    ? '<span class="badge badge-success">Sí</span>'
+    : '<span class="badge badge-danger">No</span>';
+
+  newRow.innerHTML = `
+    <td>${service._id}</td>
+    <td><strong>${service.name}</strong></td>
+    <td>${service.category}</td>
+    <td>${service.duration}</td>
+    <td>$${service.price}</td>
+    <td>${statusBadge}</td>
+    <td><a href="/views/services/${service._id}" class="btn btn-primary">Ver detalle</a></td>
+  `;
+
+  tbody.insertBefore(newRow, tbody.firstChild);
+
+  setTimeout(() => {
+    newRow.style.backgroundColor = "transparent";
+    newRow.style.transition = "background-color 1s ease-in-out";
+  }, 2000);
+
+  showToast(`Nuevo servicio "${service.name}" agregado`, "success");
+}
+
+/**
+ * Actualiza una fila existente de la tabla segun el estado actualizado.
+ */
+function updateServiceRow(service) {
+  const row = document.querySelector(`tr[data-service-id="${service._id}"]`);
+  if (!row) return;
+
+  const statusBadge = service.available
+    ? '<span class="badge badge-success">Sí</span>'
+    : '<span class="badge badge-danger">No</span>';
+
+  row.children[0].textContent = service._id;
+  row.children[1].innerHTML = `<strong>${service.name}</strong>`;
+  row.children[2].textContent = service.category;
+  row.children[3].textContent = service.duration;
+  row.children[4].textContent = `$${service.price}`;
+  row.children[5].innerHTML = statusBadge;
+  row.children[6].innerHTML = `<a href="/views/services/${service._id}" class="btn btn-primary">Ver detalle</a>`;
+
+  row.style.transition = "background-color 0.5s";
+  row.style.backgroundColor = "#fff3cd";
+  setTimeout(() => {
+    row.style.backgroundColor = "transparent";
+  }, 1500);
+
+  showToast(`Servicio "${service.name}" actualizado`, "info");
+}
+
+/**
+ * Elimina una fila de la tabla por servicio ID.
+ */
+function deleteServiceRow(service) {
+  const row = document.querySelector(`tr[data-service-id="${service._id}"]`);
+  if (!row) return;
+
+  row.style.transition = "opacity 0.5s ease-out, transform 0.5s ease-out";
+  row.style.opacity = "0";
+  row.style.transform = "translateX(-20px)";
+
+  setTimeout(() => {
+    row.remove();
+    showToast(`Servicio "${service.name}" eliminado`, "error");
+  }, 500);
+}
+
 
 // ===== Escuchar eventos del servidor Socket.io =====
 
@@ -169,8 +321,11 @@ socket.on("booking-updated", (data) => {
   const isOnBookingsList = window.location.pathname.includes("/views/bookings");
   const isOnBookingDetail = window.location.pathname.includes(`/views/booking/${data._id}`);
 
-  if (isOnBookingsList || isOnBookingDetail) {
+  if (isOnBookingsList) {
     updateBookingRow(data);
+  } else if (isOnBookingDetail) {
+    // Si estamos en la página de detalle, actualizar el badge de estado
+    updateBookingDetailPage(data);
   } else {
     showToast(`Reserva de ${data.clientName} actualizada`, "info");
   }
@@ -181,10 +336,14 @@ socket.on("booking-updated", (data) => {
  */
 socket.on("booking-deleted", (data) => {
   const isOnBookingsList = window.location.pathname.includes("/views/bookings");
-  const isOnBookingDetail = window.location.pathname.includes(`/views/booking/${data.bookingId}`);
+  const bookingId = data.bookingId || data._id;
+  const isOnBookingDetail = window.location.pathname.includes(`/views/booking/${bookingId}`);
 
-  if (isOnBookingsList || isOnBookingDetail) {
+  if (isOnBookingsList) {
     deleteBookingRow(data);
+  } else if (isOnBookingDetail) {
+    // Si estamos viendo esta reserva en el detail-page, redirigir a la lista
+    deleteBookingDetailPage(data);
   } else {
     showToast(`Reserva de ${data.clientName} eliminada`, "error");
   }
@@ -211,7 +370,46 @@ socket.on("booking-changed", (data) => {
   if (data.type === "created") {
     addBookingRow(data);
   } else {
-    updateBookingRow(data);
+    const bookingId = data.bookingId || data._id;
+    const isOnBookingDetail = window.location.pathname.includes(`/views/booking/${bookingId}`);
+    if (isOnBookingDetail) {
+      updateBookingDetailPage({ status: data.newStatus, oldStatus: data.oldStatus, newStatus: data.newStatus });
+    } else {
+      updateBookingRow(data);
+    }
+  }
+});
+
+/**
+ * Evento: nuevo servicio creado.
+ */
+socket.on("service-created", (data) => {
+  if (window.location.pathname === "/views" || window.location.pathname.includes("/views")) {
+    addServiceRow(data);
+  } else {
+    showToast(`Nuevo servicio "${data.name}" agregado`, "success");
+  }
+});
+
+/**
+ * Evento: servicio actualizado.
+ */
+socket.on("service-updated", (data) => {
+  if (window.location.pathname === "/views" || window.location.pathname.includes("/views")) {
+    updateServiceRow(data);
+  } else {
+    showToast(`Servicio "${data.name}" actualizado`, "info");
+  }
+});
+
+/**
+ * Evento: servicio eliminado.
+ */
+socket.on("service-deleted", (data) => {
+  if (window.location.pathname === "/views" || window.location.pathname.includes("/views")) {
+    deleteServiceRow(data);
+  } else {
+    showToast(`Servicio "${data.name}" eliminado`, "error");
   }
 });
 

@@ -1,7 +1,7 @@
 <h1>{{title}}</h1>
 
 {{#if services.length}}
-<table>
+<table id="services-table">
   <thead>
     <tr>
       <th>#</th>
@@ -15,7 +15,7 @@
   </thead>
   <tbody>
     {{#each services}}
-    <tr>
+    <tr data-service-id="{{this._id}}">
       <td>{{this._id}}</td>
       <td><strong>{{this.name}}</strong></td>
       <td>{{this.category}}</td>
