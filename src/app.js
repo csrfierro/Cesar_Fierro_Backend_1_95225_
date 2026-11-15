@@ -41,7 +41,7 @@ const app = express();
 app.engine(
   "handlebars",
   engine({
-    defaultLayout: "main",
+    defaultLayout: "main", //por esto se rennderiza main.handlebars al usar res.render (views.router.js)
     dir: "src/views",
     // NOTA: helper "eq" permite comparar valores en Handlebars, ej: {{#if (eq a b)}}.
     helpers: {
@@ -79,11 +79,9 @@ const medirTiempo = (req, res, next) => {
 app.use(medirTiempo);
 
 // ===== 4. RUTA RAÍZ =====
+// Redirige desde / al panel principal de vistas web
 app.get("/", (req, res) => {
-  res.status(200).json({
-    status: "correcto",
-    message: "API del Sistema de Turnos y Reservas",
-  });
+  res.redirect("/views");
 });
 
 // ===== 5. RUTAS DE SERVICIOS =====
