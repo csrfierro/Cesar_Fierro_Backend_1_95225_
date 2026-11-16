@@ -1,4 +1,4 @@
-<h1>{{title}}</h1>
+﻿<h1>{{title}}</h1>
 
 {{#if services.length}}
 <table id="services-table">
@@ -35,6 +35,39 @@
     {{/each}}
   </tbody>
 </table>
+<p class="pagination-info">Mostrando {{services.length}} de {{meta.total}} registros</p>
+
+<!-- ===== CONTROLES DE PAGINACIÓN ===== -->
+<nav id="pagination" class="pagination-controls">
+  <ul class="pagination-list">
+    <!-- Botón Anterior -->
+    {{#if meta.hasPrevPage}}
+      <li><a href="{{paginationUrl (sub meta.page 1) queryParams}}" class="btn-page btn-prev">&laquo; Anterior</a></li>
+    {{else}}
+      <li><span class="btn-page btn-prev disabled" aria-disabled="true">&laquo; Anterior</span></li>
+    {{/if}}
+
+    <!-- Números de página -->
+    {{#each meta.pageNumbers}}
+      {{#if this.isCurrent}}
+        <li><span class="btn-page active">{{this.number}}</span></li>
+      {{else if this.isDots}}
+        <li><span class="btn-page dots">...</span></li>
+      {{else}}
+        <li><a href="{{paginationUrl this.number queryParams}}" class="btn-page">{{this.number}}</a></li>
+      {{/if}}
+    {{/each}}
+
+    <!-- Botón Siguiente -->
+    {{#if meta.hasNextPage}}
+      <li><a href="{{paginationUrl (add meta.page 1) queryParams}}" class="btn-page btn-next">Siguiente &raquo;</a></li>
+    {{else}}
+      <li><span class="btn-page btn-next disabled" aria-disabled="true">Siguiente &raquo;</span></li>
+    {{/if}}
+  </ul>
+</nav>
+<!-- ===== FIN CONTROLES DE PAGINACIÓN ===== -->
+
 {{else}}
 <p>No hay servicios registrados actualmente.</p>
 {{/if}}

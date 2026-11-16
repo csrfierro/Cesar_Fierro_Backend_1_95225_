@@ -1,4 +1,5 @@
 import ServicesDAO from "../dao/mongo/services.mongo.dao.js";
+import { ServiceModel } from "../dao/models/service.model.js";
 
 // NOTA: el repository ofrece metodos de acceso a datos y esconde COMO se guardan.
 // Antes delegaba en un DAO de archivos JSON; ahora delega en el DAO de MongoDB y el
@@ -26,5 +27,23 @@ export default class ServicesRepository {
 
   delete(id) {
     return this.dao.delete(id);
+  }
+
+  /**
+   * Contar documentos que coinciden con un filtro.
+   */
+  countByFilter(filter) {
+    return ServiceModel.countDocuments(filter);
+  }
+
+  /**
+   * Obtener documentos aplicando filtros, ordenamiento y paginación.
+   */
+  getByFiltersWithPagination({ filter, sort, skip, limit }) {
+    return ServiceModel.find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .lean();
   }
 }

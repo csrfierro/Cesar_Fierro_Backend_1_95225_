@@ -1,4 +1,5 @@
 import BookingsDAO from "../dao/mongo/bookings.mongo.dao.js";
+import { BookingModel } from "../dao/models/booking.model.js";
 
 // NOTA: acceso a datos de reservas, sin reglas de negocio (ver services.repository.js).
 // CAMBIO: el import apunta al DAO de MongoDB. Como el repository solo conoce la interfaz
@@ -36,6 +37,35 @@ export default class BookingsRepository {
 
   getById(id) {
     return this.dao.getById(id);
+  }
+
+  /**
+   * Obtener una reserva con los servicios poblados (populate).
+   * Devuelve la reserva con cada item de `services` incluyendo el documento Service completo.
+   */
+  async getByIdWithServices(id) {
+    const booking = await BookingModel.findById(id)
+      .populate({ path: "services.service", select: "name price category description duration" })
+      .lean();
+    return booking;
+  }
+
+  /**
+   * Contar documentos que coinciden con un filtro.
+   */
+  countByFilter(filter) {
+    return BookingModel.countDocuments(filter);
+  }
+
+  /**
+   * Obtener documentos aplicando filtros, ordenamiento y paginación.
+   */
+  getByFiltersWithPagination({ filter, sort, skip, limit }) {
+    return BookingModel.find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .lean();
   }
 
   update(id, changes) {
