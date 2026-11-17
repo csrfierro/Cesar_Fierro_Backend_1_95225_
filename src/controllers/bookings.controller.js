@@ -6,9 +6,9 @@ const bookingsService = new BookingsService();
 // GET /api/bookings -> todas las reservas (filtro opcional ?status=)
 export const getBookings = async (req, res) => {
   try {
-    const { status } = req.query;
-    const bookings = await bookingsService.getBookings({ status });
-    res.status(200).json({ status: "correcto", payload: bookings });
+    const { page, limit, sortBy, order, status } = req.query;
+    const bookings = await bookingsService.getBookings({ status, page, limit, sortBy, order });
+    res.status(200).json({ status: "correcto", payload: bookings.data, meta: bookings.meta });
   } catch (error) {
     responderError(res, error);
   }
@@ -24,7 +24,7 @@ export const createBooking = async (req, res) => {
   }
 };
 
-// GET /api/bookings/:bid -> una reserva por id
+// GET /api/bookings/:bid -> obtiene una reserva con los servicios detallados (populate)
 export const getBookingById = async (req, res) => {
   try {
     const booking = await bookingsService.getBookingById(req.params.bid);
@@ -37,8 +37,7 @@ export const getBookingById = async (req, res) => {
 // POST /api/bookings/:bid/services/:sid -> agrega un servicio a una reserva
 export const addServiceToBooking = async (req, res) => {
   try {
-    const { bid, sid } = req.params;
-    const updatedBooking = await bookingsService.addServiceToBooking(bid, sid);
+    const updatedBooking = await bookingsService.addServiceToBooking(req.params.bid, req.params.sid);
     res.status(200).json({ status: "correcto", payload: updatedBooking });
   } catch (error) {
     responderError(res, error);

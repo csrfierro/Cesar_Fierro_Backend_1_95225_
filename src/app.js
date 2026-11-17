@@ -48,6 +48,35 @@ app.engine(
       eq: function (a, b) {
         return a === b;
       },
+      dateYear: function () {
+        return new Date().getFullYear();
+      },
+
+      // Construye una URL de paginación: baseQueryString + "&page=N"
+      paginationUrl: function (pageNum, queryParams) {
+        const qs = queryParams || "";
+        const params = qs.split("&").filter((p) => !p.startsWith("page="));
+        params.push("page=" + encodeURIComponent(pageNum));
+        return "?" + params.join("&");
+      },
+
+      // Construye una URL para un item con id: baseQueryString + "&id=N"
+      itemUrl: function (id, queryParams) {
+        const qs = queryParams || "";
+        const params = qs.split("&").filter((p) => !p.startsWith("id="));
+        params.push("id=" + encodeURIComponent(id));
+        return "?" + params.join("&");
+      },
+
+      // Operación de suma
+      add: function (a, b) {
+        return a + b;
+      },
+
+      // Operación de resta
+      sub: function (a, b) {
+        return a - b;
+      },
     },
   })
 );
@@ -62,7 +91,8 @@ app.use(express.json());
 
 // NOTA: express.static('public') permite servir archivos públicos (CSS, imágenes, etc.)
 // accediendo a rutas como /css/styles.css → public/css/styles.css
-app.use(express.static('public'));
+// Usamos __dirname + '..' para que funcione sin importar el cwd de node.
+app.use(express.static(join(__dirname, '..', 'public')));
 
 // ---------- Medir cuánto tarda cada petición ----------
 const medirTiempo = (req, res, next) => {

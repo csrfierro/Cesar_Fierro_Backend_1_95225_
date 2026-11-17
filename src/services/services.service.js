@@ -1,58 +1,63 @@
 import ServicesRepository from "../repositories/services.repository.js";
 import { ValidationError, NotFoundError } from "../utils/errors.js";
-
-// NOTA: el service contiene las REGLAS DE NEGOCIO (validaciones, filtros, que pasa si no
-// existe). No conoce req/res ni el archivo JSON: pide los datos al repository y, si algo
-// esta mal, lanza ValidationError / NotFoundError; el controller decide el codigo HTTP.
-
-const SERVICE_FIELDS = ["name", "description", "duration", "price", "category", "available"];
-
-const isNonEmptyString = (value) => typeof value === "string" && value.trim() !== "";
-const isPositiveNumber = (value) =>
-  typeof value === "number" && Number.isFinite(value) && value > 0;
-
-const FIELD_RULES = {
-  name: { isValid: isNonEmptyString, message: "name debe ser un texto no vacio" },
-  description: { isValid: isNonEmptyString, message: "description debe ser un texto no vacio" },
-  duration: { isValid: isPositiveNumber, message: "duration debe ser un numero mayor a 0" },
-  price: { isValid: isPositiveNumber, message: "price debe ser un numero mayor a 0" },
-  category: { isValid: isNonEmptyString, message: "category debe ser un texto no vacio" },
-  available: {
-    isValid: (value) => typeof value === "boolean",
-    message: "available debe ser true o false",
-  },
-};
-
-// Mensajes de error de los campos que SI vinieron (los undefined se saltean)
-function getValidationErrors(data) {
-  return SERVICE_FIELDS.filter(
-    (field) => data[field] !== undefined && !FIELD_RULES[field].isValid(data[field]),
-  ).map((field) => FIELD_RULES[field].message);
-}
+import { validateServiceCreate, validateServiceUpdate } from "../validators/service.validator.js";
 
 export default class ServicesService {
   constructor(repository = new ServicesRepository()) {
     this.repository = repository;
   }
 
-  async getServices({ category, available } = {}) {
-    let services = await this.repository.getAll();
+  async getServices({ category, available, page, limit, sortBy, order } = {}) {
+    let filter = {};
+    let sort = {};
+
+    // --- Filtros ---
 
     if (category) {
-      services = services.filter((service) => service.category === category);
+      filter.category = category;
     }
 
-    // Desde la URL llega TEXTO; solo se aceptan 'true' o 'false'
     if (available !== undefined) {
-      const availableText = String(available);
-      if (availableText !== "true" && availableText !== "false") {
-        throw new ValidationError("El filtro available debe ser true o false");
-      }
-      const isAvailable = availableText === "true";
-      services = services.filter((service) => service.available === isAvailable);
+      const availableBool = available === true || available === "true";
+      filter.available = availableBool;
     }
 
-    return services;
+    // --- Ordenamiento ---
+
+    const validSortFields = ["name", "price", "duration", "category", "createdAt"];
+    const defaultSortField = "createdAt";
+    const sortField = validSortFields.includes(sortBy) ? sortBy : defaultSortField;
+    const sortOrder = order === "desc" ? -1 : 1;
+    sort[sortField] = sortOrder;
+
+    // --- Paginacion ---
+
+    let pageNum = parseInt(page, 10);
+    if (isNaN(pageNum) || pageNum < 1) pageNum = 1;
+
+    let limitNum = parseInt(limit, 10);
+    if (isNaN(limitNum) || limitNum < 1) limitNum = 10;
+    if (limitNum > 100) limitNum = 100; // maximo permitido
+
+    // Contar documentos que coinciden con el filtro
+    const total = await this.repository.countByFilter(filter);
+
+    // Obtener servicios paginados y ordenados
+    const services = await this.repository.getByFiltersWithPagination({ filter, sort, skip: (pageNum - 1) * limitNum, limit: limitNum });
+
+    const totalPages = Math.ceil(total / limitNum);
+
+    return {
+      data: services,
+      meta: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages,
+        hasPrevPage: pageNum > 1,
+        hasNextPage: pageNum < totalPages,
+      },
+    };
   }
 
   async getServiceById(id) {
@@ -62,53 +67,20 @@ export default class ServicesService {
   }
 
   async createService(serviceData = {}) {
-    const missingFields = SERVICE_FIELDS.filter(
-      (field) =>
-        serviceData[field] === undefined ||
-        serviceData[field] === null ||
-        serviceData[field] === "",
-    );
-    if (missingFields.length > 0) {
-      throw new ValidationError(
-        `Servicio incompleto. Faltan los campos: ${missingFields.join(", ")}`,
-      );
-    }
+    // Primero validamos con Zod: lanza error si los datos son invalidos
+    const validatedData = validateServiceCreate(serviceData);
 
-    if ("id" in serviceData) {
-      throw new ValidationError("El id se genera automaticamente y no se puede enviar");
-    }
-
-    const typeErrors = getValidationErrors(serviceData);
-    if (typeErrors.length > 0) {
-      throw new ValidationError(`Datos invalidos: ${typeErrors.join(", ")}`);
-    }
-
-    // Solo se copian los campos permitidos: cualquier campo extra se descarta
-    const newService = {};
-    for (const field of SERVICE_FIELDS) {
-      newService[field] = serviceData[field];
-    }
-
-    return this.repository.create(newService);
+    return this.repository.create(validatedData);
   }
 
   async updateService(id, updatedData = {}) {
-    // Primero la existencia (404) y despues los tipos (400), igual que antes del refactor
+    // Primero la existencia (404) y despues las validaciones con Zod
     await this.getServiceById(id);
 
-    const typeErrors = getValidationErrors(updatedData);
-    if (typeErrors.length > 0) {
-      throw new ValidationError(`Datos invalidos: ${typeErrors.join(", ")}`);
-    }
+    // Validar solo los campos que se estan actualizando
+    const validatedData = validateServiceUpdate(updatedData);
 
-    const changes = {};
-    for (const field of SERVICE_FIELDS) {
-      if (updatedData[field] !== undefined) {
-        changes[field] = updatedData[field];
-      }
-    }
-
-    return this.repository.update(id, changes);
+    return this.repository.update(id, validatedData);
   }
 
   async deleteService(id) {

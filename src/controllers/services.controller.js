@@ -18,12 +18,14 @@ const emitServiceEvent = (event, data) => {
   }
 };
 
-// GET /api/services -> todos los servicios (filtros opcionales ?category= y ?available=)
+// GET /api/services -> todos los servicios (filtros opcionales ?category=, ?available=, ?page=, ?limit=, ?sortBy=, ?order=)
 export const getServices = async (req, res) => {
   try {
-    const { category, available } = req.query;
-    const services = await servicesService.getServices({ category, available });
-    res.status(200).json({ status: "correcto", payload: services });
+    const filters = req.query; // Zod ya validó params en el router si se aplica middleware.
+    // Desestructuramos los filtros y pasamos todo al service.
+    const { page, limit, sortBy, order, category, available } = filters;
+    const result = await servicesService.getServices({ category, available, page, limit, sortBy, order });
+    res.status(200).json({ status: "correcto", payload: result.data, meta: result.meta });
   } catch (error) {
     responderError(res, error);
   }

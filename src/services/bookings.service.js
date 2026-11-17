@@ -2,9 +2,7 @@ import BookingsRepository from "../repositories/bookings.repository.js";
 import ServicesRepository from "../repositories/services.repository.js";
 import { ValidationError, NotFoundError } from "../utils/errors.js";
 import { getIO } from "../socket/index.js";
-
-// Campos obligatorios al crear una reserva (el id se genera solo y services arranca vacio)
-const REQUIRED_FIELDS = ["clientName", "clientEmail", "date", "time"];
+import { validateBookingCreate } from "../validators/booking.validator.js";
 
 export default class BookingsService {
   constructor(
@@ -66,34 +64,63 @@ export default class BookingsService {
     }
   }
 
-  async getBookings({ status } = {}) {
-    const filter = status ? { status } : {};
-    return this.bookingsRepository.getAll(filter);
+  async getBookings({ status, page, limit, sortBy, order } = {}) {
+    let filter = {};
+    let sort = {};
+
+    // --- Filtros ---
+    if (status) {
+      filter.status = status;
+    }
+
+    // --- Ordenamiento ---
+    const validSortFields = ["date", "time", "clientName", "createdAt", "status"];
+    const defaultSortField = "createdAt";
+    const sortField = validSortFields.includes(sortBy) ? sortBy : defaultSortField;
+    const sortOrder = order === "desc" ? -1 : 1;
+    sort[sortField] = sortOrder;
+
+    // --- Paginación ---
+    let pageNum = parseInt(page, 10);
+    if (isNaN(pageNum) || pageNum < 1) pageNum = 1;
+
+    let limitNum = parseInt(limit, 10);
+    if (isNaN(limitNum) || limitNum < 1) limitNum = 10;
+    if (limitNum > 100) limitNum = 100; // máximo permitido
+
+    // Contar documentos que coinciden con el filtro
+    const total = await this.bookingsRepository.countByFilter(filter);
+
+    // Obtener reservas paginadas y ordenadas
+    const bookings = await this.bookingsRepository.getByFiltersWithPagination({ filter, sort, skip: (pageNum - 1) * limitNum, limit: limitNum });
+
+    const totalPages = Math.ceil(total / limitNum);
+
+    return {
+      data: bookings,
+      meta: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages,
+        hasPrevPage: pageNum > 1,
+        hasNextPage: pageNum < totalPages,
+      },
+    };
   }
 
   async createBooking(bookingData = {}) {
-    const missingFields = REQUIRED_FIELDS.filter(
-      (field) =>
-        bookingData[field] === undefined ||
-        bookingData[field] === null ||
-        bookingData[field] === "",
-    );
-    if (missingFields.length > 0) {
-      throw new ValidationError(
-        `Reserva incompleta. Faltan los campos: ${missingFields.join(", ")}`,
-      );
-    }
+    // Validar datos con Zod (lanza error si algo falla)
+    const validatedData = validateBookingCreate(bookingData);
 
-    if ("id" in bookingData || "_id" in bookingData) {
-      throw new ValidationError("El id se genera automaticamente y no se puede enviar");
-    }
-
+    // La validacion de existencia de services se hace en addServiceToBooking
+    
     const created = await this.bookingsRepository.create({
-      clientName: bookingData.clientName,
-      clientEmail: bookingData.clientEmail,
-      date: bookingData.date,
-      time: bookingData.time,
-      status: bookingData.status ?? "pendiente",
+      clientName: validatedData.clientName,
+      clientEmail: validatedData.clientEmail,
+      date: validatedData.date,
+      time: validatedData.time,
+      status: validatedData.status ?? "pendiente",
       services: [],
     });
 
@@ -104,7 +131,7 @@ export default class BookingsService {
   }
 
   async getBookingById(id) {
-    const booking = await this.bookingsRepository.getById(id);
+    const booking = await this.bookingsRepository.getByIdWithServices(id);
     if (!booking) throw new NotFoundError("Reserva no encontrada");
     return booking;
   }
@@ -116,7 +143,7 @@ export default class BookingsService {
     // Validar estado válido
     const validStatuses = ["pendiente", "confirmada", "cancelada"];
     if (!validStatuses.includes(newStatus)) {
-      throw new ValidationError(`Estado inválido: ${newStatus}. Valores permitidos: ${validStatuses.join(", ")}`);
+      throw new ValidationError(`Estado invalido: ${newStatus}. Valores permitidos: ${validStatuses.join(", ")}`);
     }
 
     // Si ya está en ese estado, no hacer nada

@@ -243,7 +243,7 @@ function addServiceRow(service) {
   setTimeout(() => {
     newRow.style.backgroundColor = "transparent";
     newRow.style.transition = "background-color 1s ease-in-out";
-  }, 2000);
+  }, 10000);
 
   showToast(`Nuevo servicio "${service.name}" agregado`, "success");
 }
